@@ -40,7 +40,9 @@ func GetSession(id string) *requests.Session {
 	}
 	sp := &sync.Pool{
 		New: func() interface{} {
-			return requests.NewSession()
+			s := requests.NewSession()
+			s.Headers = url.NewHeaders()
+			return s
 		},
 	}
 	sessionsPool[id] = sp
@@ -107,20 +109,22 @@ func buildRequest(requestParams libs.RequestParams) (*url.Request, error) {
 		req.Params = params
 	}
 
+	req.Headers = url.NewHeaders()
+	if requestParams.PseudoHeaderOrder != nil {
+		(*req.Headers)[http.PHeaderOrderKey] = requestParams.PseudoHeaderOrder
+	}
 	if requestParams.Headers != nil {
-		headers := url.NewHeaders()
 		for key, value := range requestParams.Headers {
 			if strings.ToLower(key) != "content-length" {
-				headers.Set(key, value)
+				req.Headers.Set(key, value)
 			}
 		}
-		req.Headers = headers
-		if requestParams.HeadersOrder != nil {
-			(*req.Headers)[http.HeaderOrderKey] = requestParams.HeadersOrder
-		}
-		if requestParams.UnChangedHeaderKey != nil {
-			(*req.Headers)[http.UnChangedHeaderKey] = requestParams.UnChangedHeaderKey
-		}
+	}
+	if requestParams.HeadersOrder != nil {
+		(*req.Headers)[http.HeaderOrderKey] = requestParams.HeadersOrder
+	}
+	if requestParams.UnChangedHeaderKey != nil {
+		(*req.Headers)[http.UnChangedHeaderKey] = requestParams.UnChangedHeaderKey
 	}
 
 	if requestParams.Cookies != nil {
@@ -178,10 +182,6 @@ func buildRequest(requestParams libs.RequestParams) (*url.Request, error) {
 
 	if requestParams.ForceHTTP1 {
 		req.ForceHTTP1 = requestParams.ForceHTTP1
-	}
-
-	if requestParams.PseudoHeaderOrder != nil {
-		(*req.Headers)[http.PHeaderOrderKey] = requestParams.PseudoHeaderOrder
 	}
 
 	if requestParams.TLSExtensions != "" {
